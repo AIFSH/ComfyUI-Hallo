@@ -1,11 +1,13 @@
 import os,sys
 import yaml
+import time
 import folder_paths
 
 now_dir = os.path.dirname(os.path.abspath(__file__))
 input_dir = folder_paths.get_input_directory()
 output_dir = folder_paths.get_output_directory()
-ckpt_dir = os.path.join(now_dir,"pretrained_weights")
+ckpt_dir = os.path.join(now_dir,"pretrained_models")
+print(ckpt_dir)
 
 class HalloNode:
     @classmethod
@@ -57,13 +59,15 @@ class HalloNode:
         with open(tmp_yaml_path,'w', encoding="utf-8") as f:
             yaml.dump(data=yaml_data,stream=f,Dumper=yaml.CDumper)
 
-        outfile = os.path.join(output_dir,f"{}.mp4")
-        cmd = f"""{python_exec} {infer_py} --config "{tmp_yaml_path}" -output {outfile} --pose_weight {pose_weight} --face_weight {face_weight} --lip_weight {lip_weight} --face_expand_ratio {face_expand_ratio}"""
+        outfile = os.path.join(output_dir,f"hallo_{time.time_ns()}.mp4")
+        os.environ["face_landmarker"] = os.path.join(ckpt_dir,"face_analysis","models","face_landmarker_v2_with_blendshapes.task")
+        cmd = f"""{python_exec} {infer_py} --config "{tmp_yaml_path}" --source_image "{source_image}" --driving_audio "{driving_audio}" --output {outfile} --pose_weight {pose_weight} --face_weight {face_weight} --lip_weight {lip_weight} --face_expand_ratio {face_expand_ratio}"""
         print(cmd)
         os.system(cmd)
+        os.remove(tmp_yaml_path)
         return (outfile, )
 
-class LoadAudio:
+class LoadAudioPath:
     @classmethod
     def INPUT_TYPES(s):
         files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f)) and f.split('.')[-1].lower() in ["wav", "mp3","flac","m4a"]]

@@ -356,7 +356,7 @@ def get_landmark(file):
     Returns:
         Tuple[List[float], List[float]]: A tuple containing two lists of floats representing the x and y coordinates of the facial landmarks.
     """
-    model_path = "pretrained_models/face_analysis/models/face_landmarker_v2_with_blendshapes.task"
+    model_path = os.environ["face_landmarker"] or "pretrained_models/face_analysis/models/face_landmarker_v2_with_blendshapes.task"
     BaseOptions = mp.tasks.BaseOptions
     FaceLandmarker = mp.tasks.vision.FaceLandmarker
     FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
