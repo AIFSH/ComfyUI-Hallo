@@ -29,9 +29,9 @@ pip install -r requirements.txt
 weights will be downloaded from huggingface
 
 ## Tutorial
-- [Demo]()
+- [Demo](https://b23.tv/SZFuzlK)
 
-## WeChat Group && Donate
+## WeChat Group
 <div>
   <figure>
   <img alt='Wechat' src="wechat.jpg?raw=true" width="300px"/>
