@@ -112,7 +112,8 @@ def process_audio_emb(audio_emb):
 
     return audio_emb
 
-
+pipeline = None
+net = None
 
 def inference_process(args: argparse.Namespace):
     """
@@ -124,6 +125,9 @@ def inference_process(args: argparse.Namespace):
     This function initializes the configuration for the inference process. It sets up the necessary
     modules and variables to prepare for the upcoming inference steps.
     """
+    global pipeline
+    global net
+
     # 1. init config
     config = OmegaConf.load(args.config)
     config = OmegaConf.merge(config, vars(args))
@@ -181,84 +185,87 @@ def inference_process(args: argparse.Namespace):
         audio_emb = audio_processor.preprocess(driving_audio_path)
 
     # 4. build modules
-    sched_kwargs = OmegaConf.to_container(config.noise_scheduler_kwargs)
-    if config.enable_zero_snr:
-        sched_kwargs.update(
-            rescale_betas_zero_snr=True,
-            timestep_spacing="trailing",
-            prediction_type="v_prediction",
+    if pipeline is None:#only load onece
+        sched_kwargs = OmegaConf.to_container(config.noise_scheduler_kwargs)
+        if config.enable_zero_snr:
+            sched_kwargs.update(
+                rescale_betas_zero_snr=True,
+                timestep_spacing="trailing",
+                prediction_type="v_prediction",
+            )
+        val_noise_scheduler = DDIMScheduler(**sched_kwargs)
+        sched_kwargs.update({"beta_schedule": "scaled_linear"})
+
+       
+        vae = AutoencoderKL.from_pretrained(config.vae.model_path)
+        
+        reference_unet = UNet2DConditionModel.from_pretrained(
+            config.base_model_path, subfolder="unet")
+        denoising_unet = UNet3DConditionModel.from_pretrained_2d(
+            config.base_model_path,
+            config.motion_module_path,
+            subfolder="unet",
+            unet_additional_kwargs=OmegaConf.to_container(
+                config.unet_additional_kwargs),
+            use_landmark=False,
         )
-    val_noise_scheduler = DDIMScheduler(**sched_kwargs)
-    sched_kwargs.update({"beta_schedule": "scaled_linear"})
+        face_locator = FaceLocator(conditioning_embedding_channels=320)
+        image_proj = ImageProjModel(
+            cross_attention_dim=denoising_unet.config.cross_attention_dim,
+            clip_embeddings_dim=512,
+            clip_extra_context_tokens=4,
+        )
 
-    vae = AutoencoderKL.from_pretrained(config.vae.model_path)
-    reference_unet = UNet2DConditionModel.from_pretrained(
-        config.base_model_path, subfolder="unet")
-    denoising_unet = UNet3DConditionModel.from_pretrained_2d(
-        config.base_model_path,
-        config.motion_module_path,
-        subfolder="unet",
-        unet_additional_kwargs=OmegaConf.to_container(
-            config.unet_additional_kwargs),
-        use_landmark=False,
-    )
-    face_locator = FaceLocator(conditioning_embedding_channels=320)
-    image_proj = ImageProjModel(
-        cross_attention_dim=denoising_unet.config.cross_attention_dim,
-        clip_embeddings_dim=512,
-        clip_extra_context_tokens=4,
-    )
+        audio_proj = AudioProjModel(
+            seq_len=5,
+            blocks=12,  # use 12 layers' hidden states of wav2vec
+            channels=768,  # audio embedding channel
+            intermediate_dim=512,
+            output_dim=768,
+            context_tokens=32,
+        ).to(device=device, dtype=weight_dtype)
 
-    audio_proj = AudioProjModel(
-        seq_len=5,
-        blocks=12,  # use 12 layers' hidden states of wav2vec
-        channels=768,  # audio embedding channel
-        intermediate_dim=512,
-        output_dim=768,
-        context_tokens=32,
-    ).to(device=device, dtype=weight_dtype)
-
-    audio_ckpt_dir = config.audio_ckpt_dir
+        audio_ckpt_dir = config.audio_ckpt_dir
 
 
-    # Freeze
-    vae.requires_grad_(False)
-    image_proj.requires_grad_(False)
-    reference_unet.requires_grad_(False)
-    denoising_unet.requires_grad_(False)
-    face_locator.requires_grad_(False)
-    audio_proj.requires_grad_(False)
+        # Freeze
+        vae.requires_grad_(False)
+        image_proj.requires_grad_(False)
+        reference_unet.requires_grad_(False)
+        denoising_unet.requires_grad_(False)
+        face_locator.requires_grad_(False)
+        audio_proj.requires_grad_(False)
 
-    reference_unet.enable_gradient_checkpointing()
-    denoising_unet.enable_gradient_checkpointing()
+        reference_unet.enable_gradient_checkpointing()
+        denoising_unet.enable_gradient_checkpointing()
 
-    net = Net(
-        reference_unet,
-        denoising_unet,
-        face_locator,
-        image_proj,
-        audio_proj,
-    )
+        net = Net(
+            reference_unet,
+            denoising_unet,
+            face_locator,
+            image_proj,
+            audio_proj,
+        )
 
-    m,u = net.load_state_dict(
-        torch.load(
-            os.path.join(audio_ckpt_dir, "net.pth"),
-            map_location="cpu",
-        ),
-    )
-    assert len(m) == 0 and len(u) == 0, "Fail to load correct checkpoint."
-    print("loaded weight from ", os.path.join(audio_ckpt_dir, "net.pth"))
+        m,u = net.load_state_dict(
+            torch.load(
+                os.path.join(audio_ckpt_dir, "net.pth"),
+                map_location="cpu",
+            ),
+        )
+        assert len(m) == 0 and len(u) == 0, "Fail to load correct checkpoint."
+        print("loaded weight from ", os.path.join(audio_ckpt_dir, "net.pth"))
 
-    # 5. inference
-    pipeline = FaceAnimatePipeline(
-        vae=vae,
-        reference_unet=net.reference_unet,
-        denoising_unet=net.denoising_unet,
-        face_locator=net.face_locator,
-        scheduler=val_noise_scheduler,
-        image_proj=net.imageproj,
-    )
-    pipeline.to(device=device, dtype=weight_dtype)
+        # 5. inference
+        pipeline = FaceAnimatePipeline(
+            vae=vae,
+            reference_unet=net.reference_unet,
+            denoising_unet=net.denoising_unet,
+            face_locator=net.face_locator,
+            scheduler=val_noise_scheduler,
+            image_proj=net.imageproj,
+        )
+        pipeline.to(device=device, dtype=weight_dtype)
 
     audio_emb = process_audio_emb(audio_emb)
 
