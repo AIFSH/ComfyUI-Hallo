@@ -26,7 +26,7 @@ git clone https://github.com/AIFSH/ComfyUI-Hallo.git
 cd ComfyUI-Hallo
 pip install -r requirements.txt
 ```
-weights will be downloaded from huggingface
+weights will be downloaded from huggingface,or can mamually download from [fudan-generative-ai/hallo](https://hf-mirror.com/fudan-generative-ai/hallo/tree/main),and put them all in `ComfyUI-Hallo/pretrained_models`
 
 ## Tutorial
 - [Demo](https://b23.tv/SZFuzlK)
