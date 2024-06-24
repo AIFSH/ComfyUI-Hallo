@@ -315,7 +315,7 @@ def tensor_to_video(tensor, output_video_file, audio_source, fps=25):
     new_video_clip = VideoClip(make_frame, duration=tensor.shape[0] / fps)
     audio_clip = AudioFileClip(audio_source).subclip(0, tensor.shape[0] / fps)
     new_video_clip = new_video_clip.set_audio(audio_clip)
-    new_video_clip.write_videofile(output_video_file, fps=fps)
+    new_video_clip.write_videofile(output_video_file, fps=fps, audio_codec='aac')
 
 
 silhouette_ids = [
@@ -356,7 +356,8 @@ def get_landmark(file):
     Returns:
         Tuple[List[float], List[float]]: A tuple containing two lists of floats representing the x and y coordinates of the facial landmarks.
     """
-    model_path = os.environ["face_landmarker"] or "pretrained_models/face_analysis/models/face_landmarker_v2_with_blendshapes.task"
+    # model_path = "pretrained_models/face_analysis/models/face_landmarker_v2_with_blendshapes.task"
+    model_path = os.environ["face_landmarker"]
     BaseOptions = mp.tasks.BaseOptions
     FaceLandmarker = mp.tasks.vision.FaceLandmarker
     FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions

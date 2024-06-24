@@ -2,7 +2,7 @@ diffusers
 omegaconf
 librosa
 audio-separator
-onnxruntime
+onnxruntime-gpu
 opencv-python
 onnx2torch
 onnx
