@@ -18,7 +18,7 @@ for Windows,you can install `ffmpeg` by [WingetUI](https://github.com/marticlime
 
 then!
 ```
-## insatll xformers match your torch,for torch==2.1.0+cu121
+## install xformers match your torch,for torch==2.1.0+cu121
 pip install xformers==0.0.22.post7
 pip install accelerate 
 # in ComfyUI/custom_nodes
