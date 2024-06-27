@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-hallo"
+description = "a comfyui custom node for [a/hallo](https://github.com/fudan-generative-vision/hallo)"
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["diffusers", "omegaconf", "librosa", "audio-separator", "onnxruntime", "opencv-python", "onnx2torch", "onnx", "moviepy", "accelerate", "av", "bitsandbytes", "decord", "einops", "insightface", "mediapipe[vision]==0.10.14", "mlflow", "tqdm", "isort", "pylint", "pre-commit"]
+
+[project.urls]
+Repository = "https://github.com/AIFSH/ComfyUI-Hallo"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-Hallo"
+Icon = ""
